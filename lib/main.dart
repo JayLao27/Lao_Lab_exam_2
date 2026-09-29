@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Food List',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.orange, useMaterial3: true),
+      theme: ThemeData(colorSchemeSeed: const Color(0xFF1B6A80), useMaterial3: true),
       home: const FoodListPage(),
     );
   }
@@ -44,6 +44,17 @@ class _FoodListPageState extends State<FoodListPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  // Checks if a food with the same name already exists (ignores upper/lower case).
+  // [excludeId] skips the item being edited so it can keep its own name.
+  Future<bool> isDuplicate(String name, {String? excludeId}) async {
+    final snapshot = await foods.get();
+    return snapshot.docs.any(
+      (doc) =>
+          doc.id != excludeId &&
+          (doc['name'] as String).toLowerCase() == name.toLowerCase(),
+    );
+  }
+
   // CREATE: add a new food to Firestore.
   Future<void> addFood() async {
     final name = foodController.text.trim();
@@ -51,6 +62,12 @@ class _FoodListPageState extends State<FoodListPage> {
     // Validation: do not allow empty input.
     if (name.isEmpty) {
       showMessage('Please enter a food name.');
+      return;
+    }
+
+    // Validation: do not allow duplicate names.
+    if (await isDuplicate(name)) {
+      showMessage('"$name" is already in the list.');
       return;
     }
 
@@ -86,6 +103,12 @@ class _FoodListPageState extends State<FoodListPage> {
                 return;
               }
 
+              // Validation: do not allow renaming to an existing name.
+              if (await isDuplicate(newName, excludeId: id)) {
+                showMessage('"$newName" is already in the list.');
+                return;
+              }
+
               await foods.doc(id).update({'name': newName});
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               showMessage('Food updated.');
@@ -112,11 +135,15 @@ class _FoodListPageState extends State<FoodListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFCFDFE),
       appBar: AppBar(
-        title: const Text('Food List'),
-        centerTitle: true,
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Labexam2_Lao',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+        ),
+        centerTitle: false,
+        backgroundColor: const Color(0xFFFCFDFE),
+        surfaceTintColor: Colors.transparent,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -128,18 +155,43 @@ class _FoodListPageState extends State<FoodListPage> {
                 Expanded(
                   child: TextField(
                     controller: foodController,
-                    decoration: const InputDecoration(
-                      labelText: 'Enter food',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      hintText: 'Add a new task...',
+                      filled: true,
+                      fillColor: const Color(0xFFEEF2F5),
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                     onSubmitted: (_) => addFood(),
                   ),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(onPressed: addFood, child: const Text('Add')),
+                const SizedBox(width: 12),
+                // Add button (square, teal, "+" icon).
+                SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: addFood,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B6A80),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 26),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // READ: StreamBuilder listens to Firestore and updates automatically.
             Expanded(
@@ -150,7 +202,6 @@ class _FoodListPageState extends State<FoodListPage> {
                     return const Center(child: Text('Something went wrong.'));
                   }
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
                   }
 
                   final docs = snapshot.data!.docs;
@@ -164,18 +215,39 @@ class _FoodListPageState extends State<FoodListPage> {
                       final doc = docs[index];
                       final name = doc['name'] as String;
 
-                      return Card(
+                      // Task card: light, rounded, soft shadow.
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
                         child: ListTile(
-                          title: Text(name),
+                          title: Text(name, style: const TextStyle(fontSize: 14)),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue),
+                                icon: const Icon(
+                                  Icons.edit,
+                                  size: 20,
+                                  color: Colors.grey,
+                                ),
                                 onPressed: () => editFood(doc.id, name),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 20,
+                                  color: Colors.red,
+                                ),
                                 onPressed: () => deleteFood(doc.id),
                               ),
                             ],
